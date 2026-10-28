@@ -7,7 +7,7 @@ flags. Install it from your browser in a couple of minutes; no app or account ne
 ## Online Flasher
 **[Flash it in your browser →](https://pulsesys-dev.github.io/LapLogic/)**
 
-
+## Preview (this may change as the version changes)
 ![LapLogic on the 4.3" Guition board](docs/screens-guition-landscape.png)
 
 ## Boards
