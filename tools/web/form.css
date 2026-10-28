@@ -1,0 +1,29 @@
+/* LapLogic settings form - shared by the board's own page and the flasher */
+.llf { display: grid; gap: 14px; }
+.llf section { background: var(--surface, #15151c); border: 1px solid var(--line, #2a2a35); border-radius: 12px; padding: 16px 18px; }
+.llf h3 { margin: 0 0 12px; font-size: 15px; font-weight: 600; letter-spacing: .02em; color: var(--text, #f2f2f5); }
+.llf .note { color: var(--muted, #8c8c9a); font-size: 13px; margin: 0 0 12px; line-height: 1.45; }
+.llf .note a { color: var(--text, #f2f2f5); }
+.llf .field { display: grid; grid-template-columns: minmax(130px, 38%) 1fr; gap: 10px 16px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line, #2a2a35); }
+.llf .field:first-of-type { border-top: 0; padding-top: 0; }
+.llf .field > label { font-size: 14px; color: var(--text, #f2f2f5); }
+.llf .field small { display: block; color: var(--muted, #8c8c9a); font-size: 12px; margin-top: 2px; font-weight: 400; }
+.llf select, .llf input[type=text], .llf input[type=email], .llf input[type=password] {
+  width: 100%; box-sizing: border-box; background: var(--bg, #0b0b10); color: var(--text, #f2f2f5);
+  border: 1px solid var(--line, #2a2a35); border-radius: 9px; padding: 9px 11px; font: inherit; font-size: 14px; }
+.llf select:focus, .llf input:focus { outline: 2px solid var(--accent, #e10600); outline-offset: -1px; }
+.llf .seg { display: inline-flex; background: var(--bg, #0b0b10); border: 1px solid var(--line, #2a2a35); border-radius: 9px; padding: 3px; gap: 3px; flex-wrap: wrap; }
+.llf .seg button { border: 0; background: none; color: var(--muted, #8c8c9a); padding: 7px 12px; border-radius: 7px; font: inherit; font-size: 13px; cursor: pointer; }
+.llf .seg button[aria-pressed="true"] { background: var(--surface2, #1e1e27); color: var(--text, #f2f2f5); box-shadow: inset 0 0 0 1px var(--accent, #e10600); }
+.llf .switch { position: relative; width: 46px; height: 26px; border-radius: 13px; background: var(--bg, #0b0b10); border: 1px solid var(--line, #2a2a35); cursor: pointer; padding: 0; }
+.llf .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--muted, #8c8c9a); transition: transform .15s, background .15s; }
+.llf .switch[aria-checked="true"] { background: var(--accent, #e10600); border-color: var(--accent, #e10600); }
+.llf .switch[aria-checked="true"]::after { transform: translateX(20px); background: #fff; }
+.llf .range { display: flex; align-items: center; gap: 12px; }
+.llf .range input { flex: 1; accent-color: var(--accent, #e10600); }
+.llf .range output { min-width: 44px; text-align: right; font-variant-numeric: tabular-nums; color: var(--text, #f2f2f5); font-size: 14px; }
+.llf .disabled { opacity: .45; pointer-events: none; }
+.llf .field > label { border-left: 3px solid transparent; margin-left: -11px; padding-left: 8px; }
+.llf .changed > label { border-left-color: var(--warn, #ffb800); }
+.llf .err { color: #ff6b6b; font-size: 12px; grid-column: 2; }
+@media (max-width: 520px) { .llf .field { grid-template-columns: 1fr; gap: 6px; } .llf .err { grid-column: 1; } }

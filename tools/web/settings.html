@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LapLogic Settings</title>
+<style>
+:root { --bg:#0b0b10; --surface:#15151c; --surface2:#1e1e27; --line:#2a2a35; --text:#f2f2f5; --muted:#8c8c9a; --dim:#5a5a66; --accent:#e10600; --accent-2:#ff3b30; --ok:#2bd47d; --warn:#ffb800; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+main { max-width: 720px; margin: 0 auto; padding: 22px 14px 110px; }
+.brand { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.brand .bar { width: 6px; height: 24px; background: var(--accent); border-radius: 2px; }
+.brand h1 { margin: 0; font-size: 22px; letter-spacing: 6px; font-weight: 600; }
+.brand .tag { margin-left: auto; color: var(--muted); font-size: 13px; }
+.lede { color: var(--muted); margin: 0 0 18px; font-size: 14px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin-top: 14px; }
+.card h3 { margin: 0 0 10px; font-size: 15px; font-weight: 600; }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; font-size: 14px; }
+.kv dt { color: var(--muted); } .kv dd { margin: 0; overflow-wrap: anywhere; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.btn { border: 0; border-radius: 10px; padding: 11px 16px; font: inherit; font-weight: 600; cursor: pointer; background: var(--accent); color: #fff; }
+.btn:hover { background: var(--accent-2); }
+.btn:disabled { background: var(--surface2); color: var(--dim); cursor: default; }
+.btn.secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--line); font-weight: 500; }
+.savebar { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(11,11,16,.94); border-top: 1px solid var(--line); backdrop-filter: blur(6px); }
+.savebar .in { max-width: 720px; margin: 0 auto; padding: 12px 14px; display: flex; align-items: center; gap: 12px; }
+.savebar .msg { color: var(--muted); font-size: 14px; flex: 1; }
+.savebar .msg.ok { color: var(--ok); } .savebar .msg.err { color: #ff6b6b; }
+.loading { color: var(--muted); padding: 30px 0; text-align: center; }
+.update { border-color: var(--accent); }
+.update p { margin: 6px 0 0; color: var(--muted); font-size: 14px; white-space: pre-line; }
+/*FORM_CSS*/
+</style>
+</head>
+<body>
+<main>
+  <div class="brand"><div class="bar"></div><h1>LAPLOGIC</h1><span class="tag" id="ver"></span></div>
+  <p class="lede">Settings for this display. Changes take effect as soon as you save.</p>
+  <div class="card update" id="update" hidden>
+    <h3 id="updTitle">Update available</h3>
+    <p id="updNotes"></p>
+    <div class="actions"><button class="btn" id="updInstall">Install now</button></div>
+  </div>
+  <div id="form"><div class="loading">Loading settings...</div></div>
+
+  <div class="card" id="device" hidden>
+    <h3>Device</h3>
+    <dl class="kv" id="status"></dl>
+    <div class="actions">
+      <button class="btn secondary" data-do="refresh">Refresh F1 data</button>
+      <button class="btn secondary" data-do="calibrate" id="calBtn" hidden>Calibrate touch</button>
+      <button class="btn secondary" data-do="ledtest" id="ledBtn" hidden>Test rear light</button>
+      <button class="btn secondary" data-do="updcheck">Check for updates</button>
+      <button class="btn secondary" data-do="restart">Restart</button>
+      <button class="btn secondary" data-do="wifi">Change Wi-Fi network</button>
+    </div>
+  </div>
+</main>
+<div class="savebar"><div class="in"><span class="msg" id="msg">No changes</span><button class="btn" id="save" disabled>Save</button></div></div>
+
+<script>
+/*FORM_JS*/
+</script>
+<script>
+"use strict";
+(() => {
+  const $ = (id) => document.getElementById(id);
+  let form = null;
+
+  async function load() {
+    const r = await fetch("/api/settings", { cache: "no-store" });
+    const d = await r.json();
+    $("ver").textContent = `${d.values.version}${(d.values.version || "")[0] === "b" ? " (beta)" : ""}`;
+    form = LapLogicForm($("form"), d);
+    $("calBtn").hidden = d.values.board !== "cyd";
+    $("ledBtn").hidden = d.values.led === undefined;
+    showStatus(d.status || {});
+    showUpdate(d.update);
+    $("device").hidden = false;
+  }
+
+  function showUpdate(u) {
+    $("update").hidden = !u;
+    if (!u) return;
+    $("updTitle").textContent = `LapLogic ${u.version} is available`;
+    $("updNotes").textContent = (u.notes || "").replace(/[#*`]/g, "").trim();
+  }
+
+  // while checking or installing, keep the status fresh
+  async function poll() {
+    try {
+      const d = await (await fetch("/api/settings", { cache: "no-store" })).json();
+      showStatus(d.status || {});
+      showUpdate(d.update);
+      return d;
+    } catch (e) { return null; }
+  }
+
+  $("updInstall").onclick = async () => {
+    if (!confirm("Install the update now? LapLogic downloads it, then restarts. Keep it plugged in.")) return;
+    $("updInstall").disabled = true;
+    try { await fetch("/api/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ do: "update" }) }); } catch (e) {}
+    flash("Installing the update - LapLogic restarts when it's done", "ok", 120000);
+    const t = setInterval(async () => { const d = await poll(); if (d && d.status && /available|problem/.test(d.status.firmware || "")) { clearInterval(t); $("updInstall").disabled = false; } }, 3000);
+    setTimeout(() => { clearInterval(t); location.reload(); }, 150000);
+  };
+
+  function showStatus(st) {
+    const rows = [["Board", st.board], ["Display", st.panel], ["Address", st.ip], ["Wi-Fi", st.ssid ? `${st.ssid} (${st.rssi} dBm)` : ""],
+                  ["Firmware", st.firmware], ["Time zone", st.tz], ["F1 data", st.updated], ["Weather", st.weather], ["Live map", st.live], ["Light sensor", st.light], ["Team logos", st.logos], ["Rear light", st.led], ["Memory free", st.heap]];
+    $("status").innerHTML = rows.filter(r => r[1]).map(([k, v]) => `<dt>${k}</dt><dd>${String(v).replace(/</g, "&lt;")}</dd>`).join("");
+  }
+
+  // live "unsaved changes" indicator
+  setInterval(() => {
+    if (!form) return;
+    const n = Object.keys(form.changes()).length;
+    $("save").disabled = n === 0;
+    if (!$("msg").dataset.sticky) { $("msg").className = "msg"; $("msg").textContent = n ? `${n} unsaved change${n > 1 ? "s" : ""}` : "No changes"; }
+  }, 300);
+
+  function flash(text, kind, ms) {
+    $("msg").className = "msg " + (kind || "");
+    $("msg").textContent = text;
+    $("msg").dataset.sticky = "1";
+    setTimeout(() => { delete $("msg").dataset.sticky; }, ms || 4000);
+  }
+
+  $("save").onclick = async () => {
+    const changes = form.changes();
+    $("save").disabled = true;
+    try {
+      const r = await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(changes) });
+      const d = await r.json();
+      if (d.errors && Object.keys(d.errors).length) { form.setErrors(d.errors); flash("Some settings weren't saved - see the notes above", "err", 6000); }
+      else flash(d.restart ? "Saved. LapLogic is restarting, this page will reload..." : "Saved", "ok");
+      if (d.values) form.reset(d.values);
+      if (d.restart) setTimeout(() => location.reload(), 12000);
+    } catch (e) { flash("Couldn't reach LapLogic. Is it still on this Wi-Fi?", "err", 6000); }
+  };
+
+  document.querySelectorAll("[data-do]").forEach(b => b.onclick = async () => {
+    const what = b.dataset.do;
+    if (what === "wifi" && !confirm("LapLogic will forget this Wi-Fi network and restart with its setup hotspot (LapLogic-Setup). Continue?")) return;
+    if (what === "restart" && !confirm("Restart LapLogic now?")) return;
+    try {
+      await fetch("/api/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ do: what }) });
+      if (what === "updcheck") setTimeout(poll, 6000);
+      flash({ refresh: "Refreshing the F1 data...", calibrate: "Look at the screen and tap each cross", ledtest: "The rear light is cycling through its colours", updcheck: "Checking GitHub for a new version...", restart: "Restarting...", wifi: "Switching to setup mode. Join the LapLogic-Setup Wi-Fi to continue." }[what], "ok", 8000);
+    } catch (e) { flash("Couldn't reach LapLogic", "err"); }
+  });
+
+  load().catch(() => { $("form").innerHTML = '<div class="loading">Couldn\'t load the settings. Refresh the page to try again.</div>'; });
+})();
+</script>
+</body>
+</html>

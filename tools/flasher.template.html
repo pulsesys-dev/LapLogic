@@ -1,0 +1,1013 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LapLogic Flasher</title>
+<style>
+:root {
+  --bg: #0b0b10; --surface: #15151c; --surface2: #1e1e27; --line: #2a2a35;
+  --text: #f2f2f5; --muted: #8c8c9a; --dim: #5a5a66;
+  --accent: #e10600; --accent-2: #ff3b30; --ok: #2bd47d; --warn: #ffb800;
+  --radius: 12px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+main { max-width: 1240px; margin: 0 auto; padding: 36px max(24px, env(safe-area-inset-right, 0px)) 72px max(24px, env(safe-area-inset-left, 0px)); }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: start; }
+.col-main { min-width: 0; }
+.col-side { min-width: 0; display: grid; gap: 16px; }
+@media (min-width: 1080px) {
+  .layout { grid-template-columns: minmax(0, 1fr) 380px; gap: 28px; }
+  .col-side { position: sticky; top: 20px; }
+  details.log pre { max-height: 62vh; }
+  .step { padding: 26px 28px; }
+}
+a { color: var(--text); }
+button { font: inherit; }
+
+/* header */
+.brand { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+.brand .bar { width: 6px; height: 26px; background: var(--accent); border-radius: 2px; }
+.brand h1 { margin: 0; font-size: 28px; letter-spacing: 7px; font-weight: 600; }
+.brand .tag { margin-left: auto; color: var(--muted); font-size: 13px; }
+.lede { color: var(--muted); margin: 0 0 24px; }
+
+/* banners */
+.banner { border-radius: var(--radius); padding: 14px 16px; margin-bottom: 18px; border: 1px solid; }
+.banner.err { background: #2a0e0e; border-color: #5c1a1a; }
+.banner.info { background: var(--surface); border-color: var(--line); color: var(--muted); }
+.banner strong { color: var(--text); }
+
+/* steps */
+.step { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 20px; margin-bottom: 16px; transition: opacity .2s; }
+.step.locked { opacity: .45; pointer-events: none; }
+.step-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.num { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--surface2); border: 1px solid var(--line); font-weight: 600; font-size: 14px; flex: none; }
+.step.done .num { background: var(--ok); border-color: var(--ok); color: #04150c; }
+.step-head h2 { margin: 0; font-size: 17px; font-weight: 600; }
+.step-head .aside { margin-left: auto; color: var(--muted); font-size: 13px; }
+.hint { color: var(--muted); font-size: 14px; margin: 10px 0 0; }
+
+/* board picker */
+.boards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.board { text-align: left; background: var(--surface2); border: 2px solid var(--line); border-radius: var(--radius);
+  padding: 16px; color: var(--text); cursor: pointer; display: flex; flex-direction: column; gap: 12px; }
+.board:hover { border-color: #3d3d4a; }
+.board[aria-pressed="true"] { border-color: var(--accent); background: #1f1416; }
+.board .pic { height: 92px; display: grid; place-items: center; }
+.board b { font-size: 15px; }
+.board small { color: var(--muted); display: block; line-height: 1.4; }
+.dev { position: relative; border-radius: 6px; display: grid; place-items: center; }
+.dev .scr { background: #0b0b10; border-radius: 2px; display: grid; place-items: center; overflow: hidden; }
+.dev .scr i { display: block; width: 30%; height: 3px; background: var(--accent); border-radius: 2px; box-shadow: 0 6px 0 #444, 0 12px 0 #333; }
+.dev.cyd { width: 116px; height: 86px; background: #d8c33a; }
+.dev.cyd .scr { width: 92px; height: 69px; }
+.dev.jc { width: 150px; height: 88px; background: #1a1a1f; border: 1px solid #333; }
+.dev.jc .scr { width: 136px; height: 77px; }
+
+/* buttons */
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.btn { border: 0; border-radius: 10px; padding: 12px 18px; font-weight: 600; cursor: pointer;
+  background: var(--accent); color: #fff; }
+.btn:hover { background: var(--accent-2); }
+.btn:disabled { background: var(--surface2); color: var(--dim); cursor: not-allowed; }
+.btn.secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--line); }
+.btn.secondary:hover { border-color: #3d3d4a; }
+.link { background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; padding: 6px 0; }
+
+/* options */
+.opts { display: grid; gap: 8px; margin: 14px 0 16px; }
+.opt { display: flex; gap: 10px; align-items: flex-start; color: var(--muted); font-size: 14px; }
+.opt input { margin-top: 3px; accent-color: var(--accent); }
+.opt b { color: var(--text); font-weight: 500; }
+
+/* progress */
+.progress { margin-top: 16px; display: none; }
+.progress.show { display: block; }
+.pbar { height: 10px; background: var(--surface2); border-radius: 6px; overflow: hidden; }
+.pbar > div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.pbar.ok > div { background: var(--ok); }
+.pline { display: flex; justify-content: space-between; margin-top: 8px; font-size: 14px; color: var(--muted); }
+.pline b { color: var(--text); font-weight: 500; }
+
+/* status messages */
+.msg { margin-top: 14px; padding: 12px 14px; border-radius: 10px; font-size: 14px; display: none; }
+.msg.show { display: block; }
+.msg.ok { background: #0c2318; border: 1px solid #1d5a3b; }
+.msg.err { background: #2a0e0e; border: 1px solid #5c1a1a; }
+.msg.wait { background: var(--surface2); border: 1px solid var(--line); color: var(--muted); }
+.msg .big { display: block; font-size: 16px; color: var(--text); margin-bottom: 2px; font-weight: 600; }
+
+/* wifi form */
+.wifi { display: none; margin-top: 14px; }
+.wifi.show { display: block; }
+label.f { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 6px; }
+select, input[type=text], input[type=password] { width: 100%; background: var(--bg); color: var(--text);
+  border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; font: inherit; }
+select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.pw { position: relative; }
+.pw button { position: absolute; right: 6px; top: 6px; bottom: 6px; border: 0; border-radius: 7px;
+  background: var(--surface2); color: var(--muted); padding: 0 10px; cursor: pointer; }
+.spin { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--dim); border-top-color: var(--text);
+  border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; margin-right: 8px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* log */
+details.log { margin-top: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+details.log summary { padding: 14px 18px; cursor: pointer; color: var(--muted); font-size: 14px; }
+details.log .tools { display: flex; gap: 8px; padding: 0 18px 10px; }
+details.log pre { margin: 0; padding: 12px 18px 18px; max-height: 320px; overflow: auto; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #c9c9d3; white-space: pre-wrap; word-break: break-all; border-top: 1px solid var(--line); }
+.small-btn { background: var(--surface2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 13px; cursor: pointer; }
+
+/* download-mode guide */
+details.guide { margin-top: 14px; background: var(--surface2); border: 1px solid var(--line); border-radius: 10px; }
+details.guide[open] { border-color: #3d3d4a; }
+details.guide.attention { border-color: var(--warn); }
+details.guide summary { padding: 12px 14px; cursor: pointer; font-size: 14px; color: var(--text); }
+details.guide .body { padding: 0 14px 14px; font-size: 14px; color: var(--muted); }
+details.guide ol { margin: 6px 0 10px; padding-left: 20px; }
+details.guide li { margin: 4px 0; }
+details.guide b { color: var(--text); }
+.kbd { display: inline-block; padding: 0 6px; border: 1px solid var(--dim); border-radius: 5px; font-size: 12px; color: var(--text); background: var(--bg); }
+.btn.small { padding: 8px 14px; font-size: 14px; margin-top: 10px; }
+
+.sidecard { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; }
+.sidecard h3 { margin: 0 0 8px; font-size: 15px; font-weight: 600; }
+.sidecard ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 14px; display: grid; gap: 6px; }
+.sidecard b { color: var(--text); font-weight: 500; }
+/* settings step */
+.setbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 16px; }
+.setbar .msgline { color: var(--muted); font-size: 14px; flex: 1; min-width: 160px; }
+#setForm { margin-top: 14px; }
+#setForm .llf section { background: var(--surface2); }
+/*FORM_CSS*/
+footer { color: var(--dim); font-size: 13px; margin-top: 4px; }
+footer p { margin: 4px 0; }
+
+@media (max-width: 560px) {
+  .boards { grid-template-columns: 1fr; }
+  .brand .tag { display: none; }
+}
+</style>
+</head>
+<body>
+<main>
+  <div class="brand"><div class="bar"></div><h1>LAPLOGIC</h1><span class="tag">Flasher · firmware __VERSION__</span></div>
+  <p class="lede">Install LapLogic on your board and connect it to Wi-Fi, straight from this page. Nothing to install on your computer.</p>
+
+  <div class="layout">
+  <div class="col-main">
+  <div id="unsupported" class="banner err" hidden>
+    <strong>This browser can't talk to USB devices.</strong><br>
+    Open this file in <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong> on a Mac, Windows or Linux computer.
+    (Firefox, Safari and phones don't support Web Serial.)
+  </div>
+
+  <!-- 1. Board -->
+  <section class="step" id="step1">
+    <div class="step-head"><div class="num">1</div><h2>Choose your board</h2></div>
+    <div class="boards">
+      <button class="board" data-board="cyd" aria-pressed="false">
+        <div class="pic"><div class="dev cyd"><div class="scr"><i></i></div></div></div>
+        <div><b>Cheap Yellow Display</b><small>ESP32-2432S028R · 2.8" · yellow circuit board · resistive touch</small></div>
+      </button>
+      <button class="board" data-board="jc" aria-pressed="false">
+        <div class="pic"><div class="dev jc"><div class="scr"><i></i></div></div></div>
+        <div><b>Guition 4.3"</b><small>JC4827W543C · 4.3" widescreen · capacitive touch</small></div>
+      </button>
+    </div>
+  </section>
+
+  <!-- 2. Install -->
+  <section class="step locked" id="step2">
+    <div class="step-head"><div class="num">2</div><h2>Install LapLogic</h2><span class="aside" id="fwInfo"></span></div>
+    <p class="hint" style="margin-top:0">Plug the board in with a USB <b>data</b> cable, then click Connect &amp; install and pick its port.
+      It's often listed as <i>USB Serial</i>, <i>CH340</i>, <i>CP210x</i> or <i>USB JTAG/serial debug unit</i>.</p>
+    <p class="hint">If it won't connect, use <b>boot mode</b>: press and hold <span class="kbd">BOOT</span> while you click
+      <b>Connect &amp; install</b>, keep holding, and let go when you see <b>Erasing</b> or <b>Installing</b>.</p>
+    <div class="opts">
+      <label class="opt"><input type="checkbox" id="optErase"><span><b>Erase everything first</b> - also clears saved Wi-Fi, settings and touch calibration. Use this if a previous install misbehaves.</span></label>
+      <label class="opt"><input type="checkbox" id="optSlow"><span><b>Safe speed</b> - slower, but more reliable with long or poor-quality cables.</span></label>
+    </div>
+    <div class="row">
+      <button class="btn" id="btnInstall">Connect &amp; install</button>
+      <button class="link" id="btnSkipToWifi">Already installed? Just set up Wi-Fi</button>
+    </div>
+    <div class="progress" id="prog">
+      <div class="pbar" id="pbar"><div></div></div>
+      <div class="pline"><span id="pstage">Connecting...</span><b id="ppct"></b></div>
+    </div>
+    <div class="msg" id="installMsg"></div>
+    <details class="guide" id="bootGuide">
+      <summary>Board won't connect? Use boot mode</summary>
+      <div class="body">
+        <p style="margin:4px 0">Most boards switch into boot mode by themselves. If yours doesn't, hold its
+          <span class="kbd">BOOT</span> button while you connect<span id="bootWhere"></span>.</p>
+        <ol>
+          <li>Press and <b>hold</b> <span class="kbd">BOOT</span>.</li>
+          <li>While holding it, click <b>Connect &amp; install</b> and pick the port.</li>
+          <li>Keep holding until the progress bar says <b>Erasing</b> or <b>Installing</b>, then let go.</li>
+        </ol>
+        <p style="margin:4px 0">Still won't connect? Unplug the board, hold <span class="kbd">BOOT</span> while you plug it
+          back in, then click <b>Connect &amp; install</b>. Ticking <b>Safe speed</b> also helps with long cables.</p>
+        <p style="margin:4px 0">If the screen stays blank after installing, press <span class="kbd">RST</span> once (or unplug and replug).</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- 3. Wi-Fi -->
+  <section class="step locked" id="step3">
+    <div class="step-head"><div class="num">3</div><h2>Connect to Wi-Fi</h2></div>
+    <p class="hint" style="margin-top:0" id="wifiIntro">LapLogic restarts after installing. Its Wi-Fi details are sent over the same USB cable.
+      Prefer your phone? Skip this step and scan the QR code on the screen instead.</p>
+    <div class="row" id="wifiStartRow" style="margin-top:14px">
+      <button class="btn" id="btnWifiConnect">Connect to LapLogic</button>
+    </div>
+    <div class="msg" id="wifiWait"></div>
+    <div class="wifi" id="wifiForm">
+      <label class="f" for="ssidSel">Network</label>
+      <select id="ssidSel"></select>
+      <div id="ssidOtherWrap" hidden>
+        <label class="f" for="ssidOther">Network name</label>
+        <input type="text" id="ssidOther" autocomplete="off" spellcheck="false">
+      </div>
+      <label class="f" for="pass">Password</label>
+      <div class="pw"><input type="password" id="pass" autocomplete="off"><button type="button" id="togglePw">Show</button></div>
+      <p class="hint">2.4 GHz networks only. If your router has separate 2.4 and 5 GHz names, pick the 2.4 GHz one.</p>
+      <div class="row" style="margin-top:14px">
+        <button class="btn" id="btnSendWifi">Connect LapLogic</button>
+        <button class="btn secondary" id="btnRescan">Scan again</button>
+      </div>
+    </div>
+    <div class="msg" id="wifiMsg"></div>
+  </section>
+
+  <!-- 4. Settings -->
+  <section class="step locked" id="step4">
+    <div class="step-head"><div class="num">4</div><h2>Settings</h2><span class="aside">optional</span></div>
+    <p class="hint" style="margin-top:0">Favourite driver, time zone, screen orientation, auto scroll and more, set over the same USB cable.
+      You can change these later from any phone or PC on your Wi-Fi at <b>laplogic.local</b>.</p>
+    <div class="row" id="setStartRow" style="margin-top:14px">
+      <button class="btn secondary" id="btnLoadSettings">Load settings from LapLogic</button>
+    </div>
+    <div class="msg" id="setWait"></div>
+    <div id="setForm"></div>
+    <div class="setbar" id="setBar" hidden>
+      <span class="msgline" id="setCount">No changes</span>
+      <button class="btn secondary" id="btnReloadSettings">Reload</button>
+      <button class="btn" id="btnSaveSettings" disabled>Save to LapLogic</button>
+    </div>
+    <div class="msg" id="setMsg"></div>
+  </section>
+
+  </div>
+  <aside class="col-side">
+  <div class="sidecard">
+    <h3>Before you start</h3>
+    <ul>
+      <li>Use <b>Chrome or Edge</b> on a Mac, Windows or Linux computer.</li>
+      <li>Use a USB <b>data</b> cable; many cables only charge.</li>
+      <li>Close the Arduino IDE serial monitor or anything else using the board.</li>
+      <li>Board won't connect? Hold <span class="kbd">BOOT</span> while you click <b>Connect &amp; install</b>, and let go when you see <b>Erasing</b> or <b>Installing</b>.</li>
+    </ul>
+  </div>
+  <details class="log" id="logBox">
+    <summary>Device log</summary>
+    <div class="tools"><button class="small-btn" id="btnCopyLog">Copy</button><button class="small-btn" id="btnSaveLog">Save as file</button><button class="small-btn" id="btnClearLog">Clear</button></div>
+    <pre id="log"></pre>
+  </details>
+
+  <footer>
+    <p>LapLogic __VERSION__ · Data from the Jolpica F1 API, OpenF1 and Open-Meteo · Not affiliated with Formula 1.</p>
+    <p>Flashing uses Espressif's esptool-js (Apache-2.0), bundled into this page so it works offline.</p>
+  </footer>
+  </aside>
+  </div>
+</main>
+
+<script type="application/octet-stream" id="fw-cyd" data-chip="ESP32" data-name="Cheap Yellow Display">__FW_CYD__</script>
+<script type="application/octet-stream" id="fw-jc" data-chip="ESP32-S3" data-name="Guition 4.3&quot;">__FW_JC__</script>
+<script>/*ESPTOOL*/</script>
+<script>/*FORM_JS*/</script>
+<script>
+"use strict";
+(() => {
+const $ = (id) => document.getElementById(id);
+const VERSION = "__VERSION__";
+const TIMEZONES = __TZ_LIST__;
+const BOARDS = {
+  cyd: { el: "fw-cyd", chip: "ESP32",    name: "Cheap Yellow Display" },
+  jc:  { el: "fw-jc",  chip: "ESP32-S3", name: 'Guition 4.3"' },
+};
+let board = null;
+let port = null;          // the SerialPort we're working with
+let busy = false;
+
+// ------------------------------------------------------------ log
+const logEl = $("log");
+let logLines = [];
+let partial = "";
+function logText(text) {
+  partial += text;
+  const parts = partial.split(/\r?\n/);
+  partial = parts.pop();
+  for (const p of parts) pushLine(p);
+}
+function logNote(text) { if (partial) { pushLine(partial); partial = ""; } pushLine("» " + text); }
+function pushLine(line) {
+  logLines.push(line);
+  if (logLines.length > 800) logLines = logLines.slice(-600);
+  const atBottom = logEl.scrollTop + logEl.clientHeight >= logEl.scrollHeight - 8;
+  logEl.textContent = logLines.join("\n");
+  if (atBottom) logEl.scrollTop = logEl.scrollHeight;
+}
+$("btnCopyLog").onclick = async () => {
+  try { await navigator.clipboard.writeText(logLines.join("\n")); $("btnCopyLog").textContent = "Copied"; setTimeout(() => $("btnCopyLog").textContent = "Copy", 1200); } catch (e) {}
+};
+$("btnSaveLog").onclick = () => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([logLines.join("\n")], { type: "text/plain" }));
+  a.download = "laplogic-log.txt"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+$("btnClearLog").onclick = () => { logLines = []; partial = ""; logEl.textContent = ""; };
+
+// ------------------------------------------------------------ ui helpers
+function show(id, kind, html) { const e = $(id); e.className = "msg show " + kind; e.innerHTML = html; }
+function hide(id) { const e = $(id); e.className = "msg"; e.innerHTML = ""; }
+function setStep(n, state) {
+  if (n === 3 && state === "open" && $("step4").classList.contains("locked")) setStep(4, "open");
+  $("step" + n).classList.toggle("locked", state === "locked");
+  $("step" + n).classList.toggle("done", state === "done");
+}
+function progress(stage, pct, ok) {
+  $("prog").classList.add("show");
+  $("pstage").textContent = stage;
+  $("ppct").textContent = pct == null ? "" : Math.round(pct) + "%";
+  $("pbar").firstElementChild.style.width = (pct == null ? 0 : pct) + "%";
+  $("pbar").classList.toggle("ok", !!ok);
+}
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+// ------------------------------------------------------------ firmware
+function firmware(key) {
+  const el = $(BOARDS[key].el);
+  if (!el._bytes) {
+    const b64 = el.textContent.replace(/\s+/g, "");
+    const bin = atob(b64);
+    const u8 = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    el._bytes = u8;
+  }
+  return el._bytes;
+}
+
+// MD5 for verifying what was written (esptool compares against the chip's own hash)
+function md5(bytes) {
+  const K = new Uint32Array(64), S = [7,12,17,22,7,12,17,22,7,12,17,22,7,12,17,22,5,9,14,20,5,9,14,20,5,9,14,20,5,9,14,20,4,11,16,23,4,11,16,23,4,11,16,23,4,11,16,23,6,10,15,21,6,10,15,21,6,10,15,21,6,10,15,21];
+  for (let i = 0; i < 64; i++) K[i] = Math.floor(Math.abs(Math.sin(i + 1)) * 4294967296) >>> 0;
+  const len = bytes.length, nBlocks = ((len + 8) >>> 6) + 1;
+  const words = new Uint32Array(nBlocks * 16);
+  for (let i = 0; i < len; i++) words[i >> 2] |= bytes[i] << ((i % 4) * 8);
+  words[len >> 2] |= 0x80 << ((len % 4) * 8);
+  words[nBlocks * 16 - 2] = (len * 8) >>> 0;
+  words[nBlocks * 16 - 1] = Math.floor(len / 536870912) >>> 0;
+  let a0 = 0x67452301, b0 = 0xefcdab89, c0 = 0x98badcfe, d0 = 0x10325476;
+  for (let blk = 0; blk < nBlocks; blk++) {
+    let A = a0, B = b0, C = c0, D = d0;
+    for (let i = 0; i < 64; i++) {
+      let F, g;
+      if (i < 16) { F = (B & C) | (~B & D); g = i; }
+      else if (i < 32) { F = (D & B) | (~D & C); g = (5 * i + 1) % 16; }
+      else if (i < 48) { F = B ^ C ^ D; g = (3 * i + 5) % 16; }
+      else { F = C ^ (B | ~D); g = (7 * i) % 16; }
+      F = (F + A + K[i] + words[blk * 16 + g]) >>> 0;
+      A = D; D = C; C = B;
+      B = (B + ((F << S[i]) | (F >>> (32 - S[i])))) >>> 0;
+    }
+    a0 = (a0 + A) >>> 0; b0 = (b0 + B) >>> 0; c0 = (c0 + C) >>> 0; d0 = (d0 + D) >>> 0;
+  }
+  return [a0, b0, c0, d0].map(v => [0, 8, 16, 24].map(s => ((v >>> s) & 255).toString(16).padStart(2, "0")).join("")).join("");
+}
+window.__laplogicMd5 = md5;   // used by the self-test
+
+// ------------------------------------------------------------ board picker
+document.querySelectorAll(".board").forEach(b => b.addEventListener("click", () => selectBoard(b.dataset.board)));
+function selectBoard(key) {
+  board = key;
+  $("bootWhere").textContent = key === "cyd" ? ", usually on the edge next to the USB socket" : ", usually on the back of the board";
+  document.querySelectorAll(".board").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.board === key)));
+  setStep(1, "done");
+  if (!busy) setStep(2, "open");
+  const size = (firmware(key).length / 1048576).toFixed(2);
+  $("fwInfo").textContent = `${VERSION}${VERSION[0] === "b" ? " (beta)" : ""} · ${size} MB`;
+  hide("installMsg");
+}
+
+// ------------------------------------------------------------ install
+function isUnplugError(e) { return /disconnected|device has been lost|NetworkError|The device has been lost|unplugged/i.test(String(e && (e.message || e))); }
+function isNoResponse(e) { return /Failed to connect|Timeout|timed out|No serial data|wrong boot mode/i.test(String(e && (e.message || e))); }
+
+function openBootGuide() {
+  const g = $("bootGuide");
+  g.open = true;
+  g.classList.add("attention");
+}
+
+function friendlyError(e) {
+  const m = String(e && (e.message || e)) || "Unknown error";
+  if (isNoResponse(e))
+    return "The board didn't respond, so it needs boot mode. Press and hold <b>BOOT</b>, click <b>Connect &amp; install</b> again, and let go when you see <b>Erasing</b> or <b>Installing</b>. Ticking <b>Safe speed</b> can also help.";
+  if (/open|already open|busy|Access denied|NetworkError/i.test(m))
+    return "The port is in use. Close the Arduino IDE serial monitor or any other app using the board, then try again.";
+  if (isUnplugError(e))
+    return "The board was unplugged or lost power. Plug it back in and retry. A half-finished install does no harm; it's simply written again.";
+  return esc(m);
+}
+
+$("btnInstall").onclick = async () => {
+  if (!board || busy) return;
+  busy = true;
+  $("btnInstall").disabled = true;
+  hide("installMsg");
+  let transport = null;
+  try {
+    try { port = await navigator.serial.requestPort(); }
+    catch (e) { if (e.name === "NotFoundError") return; throw e; }   // user cancelled the picker
+
+    progress("Connecting to the board...", null);
+    logNote("Connecting...");
+    transport = new esptool.Transport(port, false);
+    const terminal = { clean() {}, writeLine: (d) => logText(d + "\n"), write: (d) => logText(d) };
+    const loader = new esptool.ESPLoader({
+      transport, baudrate: $("optSlow").checked ? 115200 : 921600, romBaudrate: 115200, terminal, debugLogging: false,
+    });
+    const chipDesc = await loader.main();
+    const chip = loader.chip.CHIP_NAME;
+    logNote(`Found ${chipDesc}`);
+
+    if (chip !== BOARDS[board].chip) {
+      const other = Object.keys(BOARDS).find(k => BOARDS[k].chip === chip);
+      await transport.disconnect().catch(() => {});
+      transport = null;
+      $("prog").classList.remove("show");
+      show("installMsg", "err",
+        `<span class="big">That board has an ${esc(chip)}, not an ${esc(BOARDS[board].chip)}</span>` +
+        (other ? `It looks like a <b>${esc(BOARDS[other].name)}</b>. <button class="link" id="switchBoard">Switch to that and try again</button>`
+               : `LapLogic doesn't support this board.`));
+      if (other) $("switchBoard").onclick = () => { selectBoard(other); $("btnInstall").click(); };
+      return;
+    }
+
+    const image = firmware(board);
+    if ($("optErase").checked) {
+      progress("Erasing the whole flash (about 15 seconds). You can let go of BOOT...", null);
+      await loader.eraseFlash();
+    }
+    progress("Installing... (you can let go of BOOT)", 0);
+    // Write everything except the settings area (0x9000-0xDFFF), so Wi-Fi and settings survive
+    // an update. "Erase everything first" above clears them on purpose.
+    const NVS_START = 0x9000, NVS_END = 0xE000;
+    await loader.writeFlash({
+      fileArray: [{ data: image.subarray(0, NVS_START), address: 0 },
+                  { data: image.subarray(NVS_END), address: NVS_END }],
+      flashMode: "keep", flashFreq: "keep", flashSize: "keep",
+      eraseAll: false, compress: true,
+      // per part: bytes sent / that part's compressed size; weight the parts by their real size
+      reportProgress: (i, sent, total) => {
+        const a = NVS_START, b = image.length - NVS_END, f = total ? sent / total : 0;
+        progress("Installing... (you can let go of BOOT)", (i ? a + f * b : f * a) / (a + b) * 100);
+      },
+      calculateMD5Hash: (img) => md5(img),
+    });
+    progress("Verified. Restarting LapLogic...", 100, true);
+    await loader.after("hard_reset");
+    await transport.disconnect().catch(() => {});
+    transport = null;
+    logNote("Install complete");
+
+    $("bootGuide").classList.remove("attention");
+    show("installMsg", "ok", `<span class="big">LapLogic is installed</span>` +
+      (board === "cyd" ? "The screen will ask you to <b>tap three red crosses</b> to calibrate touch. Do that, then carry on below."
+                       : "You should see the LapLogic logo on the screen.") +
+      ` If the screen stays blank, press the board's <span class="kbd">RST</span> button once.`);
+    setStep(2, "done");
+    setStep(3, "open");
+    $("wifiIntro").scrollIntoView({ behavior: "smooth", block: "center" });
+    startWifi(true);
+  } catch (e) {
+    console.error(e);
+    logNote("Error: " + (e && e.message || e));
+    $("prog").classList.remove("show");
+    show("installMsg", "err", `<span class="big">Install didn't finish</span>${friendlyError(e)}` +
+      `<br><button class="btn small" id="btnRetryInstall">Retry install</button>`);
+    $("btnRetryInstall").onclick = () => $("btnInstall").click();
+    if (isNoResponse(e)) openBootGuide();
+    if (transport) await transport.disconnect().catch(() => {});
+  } finally {
+    busy = false;
+    $("btnInstall").disabled = false;
+  }
+};
+
+$("btnSkipToWifi").onclick = () => { setStep(3, "open"); $("step3").scrollIntoView({ behavior: "smooth", block: "center" }); };
+
+// ------------------------------------------------------------ Improv Wi-Fi over serial
+const HDR = [73, 77, 80, 82, 79, 86];   // "IMPROV"
+class Improv {
+  constructor(port) { this.port = port; this.buf = []; this.waiters = []; this.closed = false; this.decoder = new TextDecoder(); }
+  async open() {
+    await this.port.open({ baudRate: 115200 });
+    // Release reset/boot lines so the board runs normally
+    try { await this.port.setSignals({ dataTerminalReady: false, requestToSend: false }); } catch (e) {}
+    this.readLoop();
+  }
+  async readLoop() {
+    while (!this.closed && this.port.readable) {
+      this.reader = this.port.readable.getReader();
+      try {
+        for (;;) {
+          const { value, done } = await this.reader.read();
+          if (done) break;
+          if (value) this.feed(value);
+        }
+      } catch (e) { if (!this.closed) logNote("Serial: " + e.message); }
+      finally { try { this.reader.releaseLock(); } catch (e) {} }
+      if (this.closed) break;
+      await sleep(100);
+      if (!this.port.readable) break;
+    }
+  }
+  feed(bytes) {
+    for (const b of bytes) this.buf.push(b);
+    for (;;) {
+      const i = this.findHeader();
+      if (i < 0) {   // no packet start: everything except a possible partial header is log text
+        const keep = Math.min(this.buf.length, 5);
+        this.flushText(this.buf.length - keep);
+        return;
+      }
+      if (i > 0) this.flushText(i);
+      if (this.buf.length < 9) return;
+      const len = this.buf[8], total = 9 + len + 1;
+      if (this.buf.length < total) return;
+      const pkt = this.buf.splice(0, total);
+      let sum = 0; for (let k = 0; k < total - 1; k++) sum = (sum + pkt[k]) & 255;
+      if (sum !== pkt[total - 1] || pkt[6] !== 1) { logNote("Ignored a corrupted packet"); continue; }
+      if (this.buf[0] === 10) this.buf.shift();   // newline after each packet
+      this.dispatch(pkt[7], pkt.slice(9, 9 + len));
+    }
+  }
+  findHeader() {
+    outer: for (let i = 0; i + 6 <= this.buf.length; i++) {
+      for (let k = 0; k < 6; k++) if (this.buf[i + k] !== HDR[k]) continue outer;
+      return i;
+    }
+    // a header might be split across reads: report "not found" but keep the tail
+    return -1;
+  }
+  flushText(n) {
+    if (n <= 0) return;
+    const chunk = this.buf.splice(0, n);
+    logText(this.decoder.decode(new Uint8Array(chunk), { stream: true }));
+  }
+  dispatch(type, data) {
+    const ev = { type, data };
+    if (type === 4) {   // RPC result: cmd, len, then length-prefixed strings
+      const strs = []; let p = 2;
+      while (p < data.length) { const l = data[p++]; strs.push(new TextDecoder().decode(new Uint8Array(data.slice(p, p + l)))); p += l; }
+      ev.cmd = data[0]; ev.strings = strs;
+    }
+    for (const w of [...this.waiters]) if (w.match(ev)) { this.waiters.splice(this.waiters.indexOf(w), 1); w.resolve(ev); }
+    if (this.onEvent) this.onEvent(ev);
+  }
+  wait(match, timeoutMs) {
+    return new Promise((resolve, reject) => {
+      const w = { match, resolve };
+      this.waiters.push(w);
+      setTimeout(() => { const i = this.waiters.indexOf(w); if (i >= 0) { this.waiters.splice(i, 1); reject(new Error("timeout")); } }, timeoutMs);
+    });
+  }
+  async send(cmd, payload = []) {
+    const data = [cmd, payload.length, ...payload];
+    const pkt = [...HDR, 1, 3, data.length, ...data];
+    let sum = 0; for (const b of pkt) sum = (sum + b) & 255;
+    pkt.push(sum);
+    const w = this.port.writable.getWriter();
+    try { await w.write(new Uint8Array(pkt)); } finally { w.releaseLock(); }
+  }
+  async close() {
+    this.closed = true;
+    try { await this.reader?.cancel(); } catch (e) {}
+    try { await this.port.close(); } catch (e) {}
+  }
+}
+window.__LapLogicImprov = Improv;   // used by the self-test
+
+let improv = null;
+let networks = [];
+let unplugged = false;     // the board vanished during Wi-Fi setup
+let closing = Promise.resolve();   // an old connection still shutting down (same port object - must finish first)
+let lastInfo = null;       // USB ids of the board we were talking to, to spot it coming back
+
+function sameDevice(p) {
+  if (!lastInfo || !p.getInfo) return false;
+  const i = p.getInfo();
+  return i.usbVendorId === lastInfo.usbVendorId && i.usbProductId === lastInfo.usbProductId;
+}
+
+function showUnplugged() {
+  $("wifiForm").classList.remove("show");
+  hide("wifiWait");
+  $("wifiStartRow").style.display = "";
+  $("btnWifiConnect").textContent = "Reconnect";
+  show("wifiMsg", "err", `<span class="big">LapLogic was unplugged</span>Plug it back in and this page will reconnect by itself. If it doesn't, click Reconnect.`);
+}
+
+async function openPortWithRetry(p, ms) {
+  // Boards with native USB re-appear as a new device after a reset; wait for them.
+  const info = p.getInfo ? p.getInfo() : {};
+  const until = Date.now() + ms;
+  let lastErr;
+  while (Date.now() < until) {
+    try { const imp = new Improv(p); await imp.open(); return imp; }
+    catch (e) {
+      lastErr = e;
+      await sleep(700);
+      const ports = await navigator.serial.getPorts();
+      const again = ports.find(x => { const i = x.getInfo(); return i.usbVendorId === info.usbVendorId && i.usbProductId === info.usbProductId; });
+      if (again) p = again;
+    }
+  }
+  throw lastErr || new Error("Couldn't open the port");
+}
+
+$("btnWifiConnect").onclick = async () => {
+  // after an unplug, reuse the board we already have permission for if it's back
+  if (unplugged && navigator.serial) {
+    const back = (await navigator.serial.getPorts()).find(sameDevice);
+    if (back) { port = back; startWifi(true); return; }
+  }
+  startWifi(false);
+};
+
+// Opens the serial port and waits until LapLogic answers. Returns { state, urlReply } or null if
+// the person cancelled the port picker. `waitId` is the message box to show progress in.
+async function connectBoard(afterInstall, waitId) {
+    if (improv) { closing = improv.close(); improv = null; }
+    await closing.catch(() => {});
+    if (!afterInstall || !port) {
+      try { port = await navigator.serial.requestPort(); }
+      catch (e) { if (e.name === "NotFoundError") return null; throw e; }
+    }
+    show(waitId, "wait", `<span class="spin"></span>Opening the connection...`);
+    improv = await openPortWithRetry(port, afterInstall ? 15000 : 4000);
+    port = improv.port;
+    lastInfo = port.getInfo ? port.getInfo() : null;
+    unplugged = false;
+    logNote("Waiting for LapLogic to answer...");
+
+    // Ask for its state until it answers (it may be calibrating or still starting)
+    const started = Date.now();
+    let state = null;
+    let urlReply = null;
+    while (!state) {
+      const secs = Math.round((Date.now() - started) / 1000);
+      let note = "Waiting for LapLogic to start...";
+      if (board !== "jc") note += " If the screen shows red crosses, tap the centre of each one.";
+      if (secs > 20) note += " The first start can take up to a minute.";
+      show(waitId, "wait", `<span class="spin"></span>${note}`);
+      // listen for both replies before asking, so neither can slip past
+      const pState = improv.wait(ev => ev.type === 1, 1500);
+      pState.catch(() => {});   // handled below; stops an "unhandled rejection" if the board vanishes first
+      urlReply = improv.wait(ev => ev.type === 4 && ev.cmd === 2, 3000).catch(() => null);
+      try {
+        if (unplugged) throw new Error("unplugged");
+        await improv.send(0x02);
+        state = await pState;
+      } catch (e) {
+        if (unplugged || isUnplugError(e)) throw new Error("unplugged");
+        if (Date.now() - started > 150000) throw new Error("no-answer");
+      }
+    }
+
+    const info = await improv.send(0x03).then(() => improv.wait(ev => ev.type === 4 && ev.cmd === 3, 3000)).catch(() => null);
+    if (info) logNote(`Talking to ${info.strings[0]} ${info.strings[1]} on ${info.strings[2]}`);
+    hide(waitId);
+    setStep(4, "open");
+    return { state, urlReply };
+}
+
+async function startWifi(afterInstall) {
+  if (busy) return;
+  busy = true;
+  hide("wifiMsg");
+  $("wifiForm").classList.remove("show");
+  $("wifiStartRow").style.display = "none";
+  try {
+    const c = await connectBoard(afterInstall, "wifiWait");
+    if (!c) { $("wifiStartRow").style.display = ""; return; }
+    const { state, urlReply } = c;
+
+    if (state.data[0] === 4) {   // already provisioned
+      const res = await urlReply;
+      const url = res && res.strings[0];
+      show("wifiMsg", "ok", `<span class="big">LapLogic is already online</span>` +
+        (url ? `Settings: <a href="${esc(url)}" target="_blank" rel="noopener">${esc(url)}</a> or <a href="http://laplogic.local" target="_blank" rel="noopener">laplogic.local</a>. ` : "") +
+        `To move it to a different network, choose one below.`);
+    }
+    await scan();
+  } catch (e) {
+    console.error(e);
+    hide("wifiWait");
+    $("wifiStartRow").style.display = "";
+    $("btnWifiConnect").textContent = "Try again";
+    if (e.message === "unplugged" || isUnplugError(e)) showUnplugged();
+    else if (e.message === "no-answer")
+      show("wifiMsg", "err", `<span class="big">LapLogic didn't answer</span>Make sure LapLogic is installed and the board is plugged in. Unplug it, plug it back in, then click Try again. The device log below shows what the board printed.`);
+    else show("wifiMsg", "err", `<span class="big">Couldn't connect to the board</span>${friendlyError(e)}`);
+  } finally {
+    busy = false;
+  }
+}
+
+async function scan() {
+  show("wifiWait", "wait", `<span class="spin"></span>Looking for Wi-Fi networks...`);
+  $("btnRescan").disabled = true;
+  const found = [];
+  try {
+    const imp = improv;   // this connection, even if a reconnect replaces `improv` meanwhile
+    const done = new Promise((resolve) => {
+      const prev = imp.onEvent;
+      let t = null;
+      const finish = () => { clearTimeout(t); imp.onEvent = prev; resolve(); };
+      imp.onEvent = (ev) => {
+        if (prev) prev(ev);
+        if (ev.type === 4 && ev.cmd === 4) {
+          if (ev.strings.length === 0) finish();
+          else found.push({ ssid: ev.strings[0], rssi: parseInt(ev.strings[1], 10), secure: ev.strings[2] === "YES" });
+        }
+      };
+      t = setTimeout(finish, 15000);
+    });
+    await imp.send(0x04);
+    await done;
+  } catch (e) { logNote("Scan failed: " + e.message); }
+  $("btnRescan").disabled = false;
+  hide("wifiWait");
+
+  networks = found.sort((a, b) => b.rssi - a.rssi);
+  const sel = $("ssidSel");
+  sel.innerHTML = "";
+  for (const n of networks) {
+    const o = document.createElement("option");
+    const bars = n.rssi > -60 ? "▂▄▆█" : n.rssi > -70 ? "▂▄▆" : n.rssi > -80 ? "▂▄" : "▂";
+    o.value = n.ssid; o.textContent = `${n.ssid}   ${bars}${n.secure ? "" : "  (open)"}`;
+    sel.appendChild(o);
+  }
+  const other = document.createElement("option");
+  other.value = "\u0000other"; other.textContent = networks.length ? "Other network..." : "Type the network name...";
+  sel.appendChild(other);
+  sel.onchange = () => { $("ssidOtherWrap").hidden = sel.value !== "\u0000other"; updatePwState(); };
+  sel.onchange();
+  $("wifiForm").classList.add("show");
+  if (!networks.length) show("wifiMsg", "wait", "No networks found. Type your network's name instead, or click Scan again.");
+}
+
+function chosenSsid() { const v = $("ssidSel").value; return v === "\u0000other" ? $("ssidOther").value.trim() : v; }
+function updatePwState() {
+  const n = networks.find(x => x.ssid === $("ssidSel").value);
+  $("pass").placeholder = n && !n.secure ? "No password needed" : "";
+}
+$("togglePw").onclick = () => { const p = $("pass"); p.type = p.type === "password" ? "text" : "password"; $("togglePw").textContent = p.type === "password" ? "Show" : "Hide"; };
+$("btnRescan").onclick = () => { hide("wifiMsg"); scan(); };
+
+$("btnSendWifi").onclick = async () => {
+  const ssid = chosenSsid(), pass = $("pass").value;
+  const enc = new TextEncoder();
+  const s = enc.encode(ssid), p = enc.encode(pass);
+  if (!ssid) { show("wifiMsg", "err", "Choose or type a network name."); return; }
+  if (s.length > 32) { show("wifiMsg", "err", "That network name is too long (32 characters at most)."); return; }
+  if (p.length > 64) { show("wifiMsg", "err", "That password is too long (64 characters at most)."); return; }
+  $("btnSendWifi").disabled = true;
+  hide("wifiMsg");
+  show("wifiWait", "wait", `<span class="spin"></span>Connecting LapLogic to <b>${esc(ssid)}</b>...`);
+  try {
+    // success = RPC result with the URL; failure = "unable to connect" error (3)
+    const outcome = improv.wait(ev => (ev.type === 4 && ev.cmd === 1) || (ev.type === 2 && ev.data[0] === 3), 35000);
+    outcome.catch(() => {});  // handled below
+    await improv.send(0x01, [s.length, ...s, p.length, ...p]);
+    const ev = await outcome;
+    hide("wifiWait");
+    if (ev.type === 4) {
+      const url = ev.strings[0] || "http://laplogic.local";
+      $("wifiForm").classList.remove("show");
+      setStep(3, "done");
+      show("wifiMsg", "ok", `<span class="big">LapLogic is online</span>` +
+        `It's loading the F1 data now. Choose your favourite driver, time zone and more in step 4 below, or later at ` +
+        `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(url)}</a> or <a href="http://laplogic.local" target="_blank" rel="noopener">laplogic.local</a>. ` +
+        `When you're done you can unplug the USB cable and power it from any USB charger.`);
+      loadSettings();
+    } else {
+      show("wifiMsg", "err", `<span class="big">Couldn't join ${esc(ssid)}</span>Check the password, and that it's a 2.4 GHz network, then try again.`);
+    }
+  } catch (e) {
+    hide("wifiWait");
+    if (unplugged || isUnplugError(e)) showUnplugged();
+    else show("wifiMsg", "err", `<span class="big">No reply from LapLogic</span>It may still be connecting. Watch its screen; if it doesn't come online, check the password and try again.`);
+  } finally {
+    $("btnSendWifi").disabled = false;
+  }
+};
+
+// ------------------------------------------------------------ settings over USB (LapLogic commands 0x81-0x83)
+let setForm = null;
+let expectRestart = 0;      // Date.now() until which a disconnect is LapLogic restarting on purpose
+
+function strBytes(str) { return Array.from(new TextEncoder().encode(str)); }
+
+async function readSettings() {
+  const values = {}, drivers = [];
+  const imp = improv;
+  await new Promise((resolve, reject) => {
+    const prev = imp.onEvent;
+    const done = (err) => { imp.onEvent = prev; clearTimeout(t); err ? reject(err) : resolve(); };
+    const t = setTimeout(() => done(new Error("timeout")), 6000);
+    imp.onEvent = (ev) => {
+      if (prev) prev(ev);
+      if (ev.type === 2 && ev.data[0] === 2) return done(new Error("old-firmware"));   // unknown command
+      if (ev.type !== 4 || ev.cmd !== 0x81) return;
+      if (!ev.strings.length) return done();
+      const [k, v] = ev.strings;
+      if (k === "driver") { const i = v.indexOf(" "); drivers.push(i > 0 ? [v.slice(0, i), v.slice(i + 1)] : [v, ""]); }
+      else values[k] = v;
+    };
+    imp.send(0x81).catch(done);
+  });
+  return { values, drivers, timezones: TIMEZONES };
+}
+
+function showSettingsForm(data) {
+  setForm = LapLogicForm($("setForm"), data);
+  $("setBar").hidden = false;
+  $("setStartRow").style.display = "none";
+}
+
+async function loadSettings() {
+  if (busy) return;
+  busy = true;
+  hide("setMsg");
+  try {
+    if (!improv) {
+      const c = await connectBoard(false, "setWait");
+      if (!c) return;
+    }
+    show("setWait", "wait", `<span class="spin"></span>Reading LapLogic's settings...`);
+    const data = await readSettings();
+    hide("setWait");
+    showSettingsForm(data);
+    if (!data.drivers.length) waitForDrivers();
+    logNote(`Settings loaded (${data.values.board || "?"} ${data.values.version || "?"})`);
+  } catch (e) {
+    console.error(e);
+    hide("setWait");
+    $("setStartRow").style.display = "";
+    if (e.message === "old-firmware")
+      show("setMsg", "err", `<span class="big">This LapLogic is too old for settings over USB</span>Install the latest version in step 2, then try again.`);
+    else if (unplugged || isUnplugError(e)) show("setMsg", "err", `<span class="big">LapLogic was unplugged</span>Plug it back in, then click Load settings again.`);
+    else show("setMsg", "err", `<span class="big">LapLogic didn't send its settings</span>Make sure it has finished starting up, then try again.`);
+  } finally {
+    busy = false;
+  }
+}
+// Straight after Wi-Fi setup LapLogic hasn't loaded the standings yet, so the form starts with the
+// built-in grid. Ask again every 10 seconds for a couple of minutes and swap in the real list.
+let driverTimer = null;
+function waitForDrivers() {
+  clearInterval(driverTimer);
+  let tries = 0;
+  driverTimer = setInterval(async () => {
+    if (++tries > 12 || !improv || !setForm) { clearInterval(driverTimer); return; }
+    if (busy) return;
+    busy = true;
+    try {
+      const d = await readSettings();
+      if (d.drivers.length) { setForm.setDrivers(d.drivers); clearInterval(driverTimer); logNote(`Driver list updated (${d.drivers.length} drivers)`); }
+    } catch (e) {} finally { busy = false; }
+  }, 10000);
+}
+$("btnLoadSettings").onclick = loadSettings;
+$("btnReloadSettings").onclick = loadSettings;
+
+setInterval(() => {
+  if (!setForm) return;
+  const n = Object.keys(setForm.changes()).length;
+  $("btnSaveSettings").disabled = n === 0 || busy;
+  $("setCount").textContent = n ? `${n} unsaved change${n > 1 ? "s" : ""}` : "No changes";
+}, 300);
+
+$("btnSaveSettings").onclick = async () => {
+  if (busy || !setForm || !improv) { if (!improv) show("setMsg", "err", "LapLogic isn't connected. Click Reload to reconnect."); return; }
+  const changes = setForm.changes();
+  busy = true;
+  hide("setMsg");
+  show("setWait", "wait", `<span class="spin"></span>Saving...`);
+  const errors = {};
+  try {
+    for (const [k, v] of Object.entries(changes)) {
+      const kb = strBytes(k), vb = strBytes(v);
+      if (kb.length + vb.length > 240) { errors[k] = "too long"; continue; }
+      const reply = improv.wait(ev => ev.type === 4 && ev.cmd === 0x82 && ev.strings[0] === k, 3000);
+      reply.catch(() => {});
+      await improv.send(0x82, [kb.length, ...kb, vb.length, ...vb]);
+      const ev = await reply;
+      if (ev.strings[1] !== "ok") errors[k] = ev.strings[1];
+    }
+    const applied = improv.wait(ev => ev.type === 4 && ev.cmd === 0x83, 4000);
+    applied.catch(() => {});
+    await improv.send(0x83);
+    const restart = (await applied).strings[0] === "restart";
+    hide("setWait");
+    if (Object.keys(errors).length) {
+      setForm.setErrors(errors);
+      show("setMsg", "err", `Some settings weren't saved - see the notes above.`);
+    }
+    if (restart) {
+      expectRestart = Date.now() + 30000;
+      const isCyd = !!$("setForm").querySelector('[data-key="colours"]');   // only the CYD has that setting
+      show("setMsg", "ok", `<span class="big">Saved</span><span class="spin"></span>LapLogic is restarting with the new settings...` +
+        (isCyd && changes.orient ? " When it asks, tap the centre of each red cross to calibrate touch for the new orientation." : ""));
+      const back = await safeReadAfterRestart();
+      expectRestart = 0;   // from here on, a disconnect really is an unplug
+      if (!back) show("setMsg", "ok", `<span class="big">Saved</span>LapLogic restarted. Click Reload to see its settings again.`);
+      return;
+    }
+    if (!Object.keys(errors).length) show("setMsg", "ok", `<span class="big">Saved</span>LapLogic is using the new settings.`);
+    const data = await readSettings().catch(() => null);
+    if (data) { const err = Object.keys(errors).length; showSettingsForm(data); if (err) setForm.setErrors(errors); }
+  } catch (e) {
+    hide("setWait");
+    if (unplugged || isUnplugError(e)) show("setMsg", "err", `<span class="big">LapLogic was unplugged</span>Plug it back in, then click Reload.`);
+    else show("setMsg", "err", `<span class="big">No reply from LapLogic</span>Some settings may not have been saved. Click Reload to check.`);
+  } finally {
+    busy = false;
+  }
+};
+
+// After a restart: wait for LapLogic to come back on the same cable, then read the settings again.
+async function safeReadAfterRestart() {
+  try {
+    await sleep(2500);
+    const until = Date.now() + 60000;
+    while (Date.now() < until) {
+      if (!improv) {   // native USB: the port went away and came back
+        const back = navigator.serial && (await navigator.serial.getPorts()).find(sameDevice);
+        if (back) { try { improv = await openPortWithRetry(back, 5000); port = improv.port; unplugged = false; } catch (e) {} }
+      }
+      if (improv) {
+        try {
+          const st = improv.wait(ev => ev.type === 1, 1500); st.catch(() => {});
+          await improv.send(0x02); await st;
+          const data = await readSettings();
+          showSettingsForm(data);
+          show("setMsg", "ok", `<span class="big">Saved</span>LapLogic has restarted with the new settings.`);
+          return data.values;
+        } catch (e) {}
+      }
+      await sleep(1500);
+    }
+  } catch (e) {}
+  return null;
+}
+
+// ------------------------------------------------------------ start
+if (!("serial" in navigator)) {
+  $("unsupported").hidden = false;
+  document.querySelectorAll(".step").forEach(s => s.classList.add("locked"));
+}
+if (navigator.serial) {
+  navigator.serial.addEventListener("disconnect", (e) => {
+    if (!improv || e.target !== improv.port) return;
+    const restarting = Date.now() < expectRestart;
+    logNote(restarting ? "LapLogic is restarting" : "Board unplugged");
+    unplugged = !restarting;
+    closing = improv.close().catch(() => {});
+    improv = null;
+    if (!busy && !restarting) showUnplugged();     // a running step reports it itself
+  });
+  navigator.serial.addEventListener("connect", (e) => {
+    if (!unplugged || busy || !sameDevice(e.target)) return;
+    logNote("Board plugged back in - reconnecting");
+    port = e.target;
+    startWifi(true);
+  });
+}
+})();
+</script>
+</body>
+</html>

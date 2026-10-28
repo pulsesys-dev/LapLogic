@@ -1,0 +1,20 @@
+LapLogic b1.7.1 firmware
+
+Easiest: flash the merged file for your board at offset 0x0.
+  LapLogic-Guition-JC4827W543.bin   Guition JC4827W543C (ESP32-S3, 4MB flash, 8MB OPI PSRAM)
+  LapLogic-CYD-ESP32-2432S028R.bin  ESP32-2432S028R Cheap Yellow Display (ESP32, 4MB flash)
+
+esptool examples:
+  esptool.py --chip esp32s3 --baud 921600 write_flash 0x0 LapLogic-Guition-JC4827W543.bin
+  esptool.py --chip esp32   --baud 921600 write_flash 0x0 LapLogic-CYD-ESP32-2432S028R.bin
+
+Separate parts, if your tool needs them (note the bootloader address differs):
+
+  guition-jc4827w543/            cyd-esp32-2432s028r/
+  0x0000   bootloader            0x1000   bootloader
+  0x8000   partitions            0x8000   partitions
+  0xE000   boot_app0.bin         0xE000   boot_app0.bin
+  0x10000  LapLogic.ino.bin       0x10000  LapLogic.ino.bin
+
+Built with ESP32 Arduino core 2.0.17, GFX Library for Arduino 1.4.9,
+LVGL 8.3.11, ArduinoJson 7.2.1, WiFiManager 2.0.17, PubSubClient 2.8.

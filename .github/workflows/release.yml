@@ -1,0 +1,53 @@
+# Push a version tag and this builds both firmwares and publishes a GitHub release with them.
+#   Beta:     git tag b1.7.1 && git push origin b1.7.1   -> published as a pre-release
+#   Official: git tag v1.8.0 && git push origin v1.8.0   -> published as the latest release
+# LapLogic boards check once a day and offer to install a newer version (beta boards take betas
+# too). The tag must match APP_VERSION in LapLogic/config.h exactly.
+name: Release
+
+on:
+  push:
+    tags: ["v*", "b*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the tag matches APP_VERSION
+        run: |
+          v=$(sed -n 's/^#define APP_VERSION *"\([^"]*\)".*/\1/p' LapLogic/config.h)
+          if [ "$v" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} doesn't match APP_VERSION \"$v\" in LapLogic/config.h"; exit 1
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install esptool==4.8.1
+
+      - uses: arduino/setup-arduino-cli@v2
+
+      - name: Install the ESP32 core and libraries (pinned versions)
+        run: |
+          arduino-cli config init --overwrite
+          arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32@2.0.17
+          arduino-cli lib install "GFX Library for Arduino@1.4.9" "lvgl@8.3.11" "ArduinoJson@7.2.1" "WiFiManager@2.0.17" "PubSubClient@2.8"
+
+      - name: Build
+        run: tools/build_release.sh
+
+      - name: Publish the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/release/*
+          generate_release_notes: true
+          prerelease: ${{ startsWith(github.ref_name, 'b') }}
+          name: ${{ startsWith(github.ref_name, 'b') && format('LapLogic {0} (beta)', github.ref_name) || format('LapLogic {0}', github.ref_name) }}
