@@ -4,6 +4,8 @@ An F1 desk display for two cheap ESP32 touchscreens. Countdowns to every session
 time zone, standings, results, the weather at the circuit, a live track map and race control
 flags. Install it from your browser in a couple of minutes; no app or account needed.
 
+**[Flash it in your browser →](https://pulsesys-dev.github.io/LapLogic/)**
+
 ![LapLogic on the 4.3" Guition board](docs/screens-guition-landscape.png)
 
 ## Boards
@@ -27,8 +29,10 @@ flags. Install it from your browser in a couple of minutes; no app or account ne
 
 ## Install
 
-1. Download **`LapLogic-Flasher.html`** from the [latest release](https://github.com/pulsesys-dev/LapLogic/releases/latest).
-2. Open it in **Chrome or Edge**, choose your board, plug it in with a USB data cable and click
+1. Open the **[LapLogic flasher](https://pulsesys-dev.github.io/LapLogic/)** in **Chrome or Edge**
+   (or download **`LapLogic-Flasher.html`** from the
+   [latest release](https://github.com/pulsesys-dev/LapLogic/releases/latest) and open that).
+2. Choose your board, plug it in with a USB data cable and click
    **Connect & install**.
 3. Enter your Wi-Fi details on the same page, then choose your favourite driver and time zone.
 
