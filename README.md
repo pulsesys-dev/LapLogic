@@ -4,7 +4,9 @@ An F1 desk display for two cheap ESP32 touchscreens. Countdowns to every session
 time zone, standings, results, the weather at the circuit, a live track map and race control
 flags. Install it from your browser in a couple of minutes; no app or account needed.
 
+## Online Flasher
 **[Flash it in your browser →](https://pulsesys-dev.github.io/LapLogic/)**
+
 
 ![LapLogic on the 4.3" Guition board](docs/screens-guition-landscape.png)
 
